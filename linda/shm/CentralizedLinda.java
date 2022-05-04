@@ -14,22 +14,24 @@ import java.util.concurrent.locks.ReentrantLock;
 public class CentralizedLinda implements Linda {
     private List<Tuple> tuplesSpace;
     private List<CallBackInfo> callBackInfos;
-    private final Lock lock ;
+    private final Lock tupleSpaceLock;
+    private final Lock callbackLock ;
 
 
     public CentralizedLinda() {
         tuplesSpace = new ArrayList<>();
         callBackInfos = new ArrayList<>();
-        lock = new ReentrantLock(); // true to be fair & can be changed
+        tupleSpaceLock = new ReentrantLock();
+        callbackLock = new ReentrantLock();
     }
 
     // TO BE COMPLETED
 
     @Override
     public void write(Tuple t) {
-        lock.lock();
+        tupleSpaceLock.lock();
         tuplesSpace.add(t);
-        lock.unlock();
+        tupleSpaceLock.unlock();
 
         for (CallBackInfo callBackInfo: callBackInfos) {
             Tuple tuple = tryRead(callBackInfo.getTemplate());
@@ -50,7 +52,7 @@ public class CentralizedLinda implements Linda {
     public Tuple take(Tuple template) {
         Tuple res = null;
         while (res == null) {
-            lock.lock();
+            tupleSpaceLock.lock();
             for (Tuple tuple : tuplesSpace) {
                 if(tuple.matches(template)) {
                     tuplesSpace.remove(tuple);
@@ -58,7 +60,7 @@ public class CentralizedLinda implements Linda {
                     break;
                 }
             }
-            lock.unlock();
+            tupleSpaceLock.unlock();
         }
         return res;
     }
@@ -67,69 +69,76 @@ public class CentralizedLinda implements Linda {
     public Tuple read(Tuple template) {
         Tuple res = null;
         while (res == null) {
-            lock.lock();
+            tupleSpaceLock.lock();
             for (Tuple tuple : tuplesSpace) {
                 if(tuple.matches(template)) {
                     res = tuple.deepclone();
                     break;
                 }
             }
-            lock.unlock();
+            tupleSpaceLock.unlock();
         }
         return res;
     }
 
     @Override
     public Tuple tryTake(Tuple template) {
-        lock.lock();
+        tupleSpaceLock.lock();
         Tuple res = null;
         for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
-                res = tuple;
                 tuplesSpace.remove(tuple);
+                res = tuple;
+                break;
             }
         }
-        lock.unlock();
+        tupleSpaceLock.unlock();
         return res;
     }
 
     @Override
     public Tuple tryRead(Tuple template) {
-        lock.lock();
+        tupleSpaceLock.lock();
         Tuple res = null;
         for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
                 res = tuple.deepclone();
+                break;
             }
         }
-        lock.unlock();
+        tupleSpaceLock.unlock();
         return res;
     }
 
     @Override
     public Collection<Tuple> takeAll(Tuple template) {
         List<Tuple> res = new ArrayList<>();
-        lock.lock();
-        for (Tuple tuple : tuplesSpace) {
+        tupleSpaceLock.lock();
+
+        for (Tuple tuple : tuplesSpace) { // TODO: Question utiliser iterator ???
             if(tuple.matches(template)) {
                 res.add(tuple);
-                tuplesSpace.remove(tuple);
             }
         }
-        lock.unlock();
+
+        for (Tuple tuple : res) {
+            tuplesSpace.remove(tuple);
+        }
+
+        tupleSpaceLock.unlock();
         return res;
     }
 
     @Override
     public Collection<Tuple> readAll(Tuple template) {
         List<Tuple> res = new ArrayList<>();
-        lock.lock();
+        tupleSpaceLock.lock();
         for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
                 res.add(tuple.deepclone());
             }
         }
-        lock.unlock();
+        tupleSpaceLock.unlock();
         return res;
     }
 
@@ -151,12 +160,12 @@ public class CentralizedLinda implements Linda {
 
     @Override
     public void debug(String prefix) {
-        lock.lock();
+        tupleSpaceLock.lock();
         System.out.println("\nStart Debugging " + prefix);
         for (Tuple tuple : tuplesSpace) {
             System.out.println(tuple.toString());
         }
         System.out.println("Debugging Finished " + prefix + "\n");
-        lock.unlock();
+        tupleSpaceLock.unlock();
     }
 }
