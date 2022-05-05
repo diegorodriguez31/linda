@@ -25,21 +25,21 @@ public class CentralizedLinda implements Linda {
         callbackLock = new ReentrantLock();
     }
 
-    // TO BE COMPLETED
-
     @Override
     public void write(Tuple t) {
-        tupleSpaceLock.lock();
-        tuplesSpace.add(t);
-        tupleSpaceLock.unlock();
+        synchronized (this) {
+            tupleSpaceLock.lock();
+            tuplesSpace.add(t);
+            tupleSpaceLock.unlock();
+            notifyAll();
+        }
 
-        for (CallBackInfo callBackInfo: callBackInfos) {
+        for (CallBackInfo callBackInfo : callBackInfos) {
             Tuple tuple = tryRead(callBackInfo.getTemplate());
-            if(tuple != null){
+            if (tuple != null) {
                 if (callBackInfo.getMode() == eventMode.READ) {
                     callBackInfo.getCallback().call(tuple);
-                }
-                else if (callBackInfo.getMode() == eventMode.TAKE) {
+                } else if (callBackInfo.getMode() == eventMode.TAKE) {
                     callBackInfo.getCallback().call(take(callBackInfo.getTemplate()));
                 }
             }
@@ -51,10 +51,18 @@ public class CentralizedLinda implements Linda {
     @Override
     public Tuple take(Tuple template) {
         Tuple res = null;
-        while (res == null) {
+        synchronized(this) {
+            while (!isTemplateOccurrence(template)) {
+                try {
+                    wait();
+                } catch (Exception e) {
+                    System.out.println(e);
+                }
+            }
+
             tupleSpaceLock.lock();
             for (Tuple tuple : tuplesSpace) {
-                if(tuple.matches(template)) {
+                if (tuple.matches(template)) {
                     tuplesSpace.remove(tuple);
                     res = tuple;
                     break;
@@ -68,16 +76,26 @@ public class CentralizedLinda implements Linda {
     @Override
     public Tuple read(Tuple template) {
         Tuple res = null;
-        while (res == null) {
+
+        synchronized(this) {
+            while (!isTemplateOccurrence(template)) {
+                try {
+                    wait();
+                } catch (Exception e) {
+                    System.out.println(e);
+                }
+            }
+
             tupleSpaceLock.lock();
             for (Tuple tuple : tuplesSpace) {
-                if(tuple.matches(template)) {
+                if (tuple.matches(template)) {
                     res = tuple.deepclone();
                     break;
                 }
             }
             tupleSpaceLock.unlock();
         }
+
         return res;
     }
 
@@ -167,5 +185,9 @@ public class CentralizedLinda implements Linda {
         }
         System.out.println("Debugging Finished " + prefix + "\n");
         tupleSpaceLock.unlock();
+    }
+
+    public boolean isTemplateOccurrence(Tuple template){
+        return tryRead(template) != null;
     }
 }
