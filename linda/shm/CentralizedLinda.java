@@ -16,11 +16,14 @@ public class CentralizedLinda implements Linda {
     private List<CallBackInfo> callBackInfos;
     private final Lock tupleSpaceLock;
 
+    private final Lock callBackLock;
+
 
     public CentralizedLinda() {
         tuplesSpace = new ArrayList<>();
         callBackInfos = new ArrayList<>();
         tupleSpaceLock = new ReentrantLock();
+        callBackLock = new ReentrantLock();
     }
 
     @Override
@@ -44,6 +47,8 @@ public class CentralizedLinda implements Linda {
             while (!isTemplateOccurrence(template)) {
                 try {
                     wait();
+
+                    //variablteCondition.wait();
                 } catch (Exception e) {
                     System.out.println(e);
                 }
@@ -181,26 +186,23 @@ public class CentralizedLinda implements Linda {
     }
 
     public void manageCallbacks(){
-        List<CallBackInfo> callBacksToRemove = new ArrayList<>();
+        List<CallBackInfo> callBacksToTrigger = new ArrayList<>();
 
-        List<CallBackInfo> tempToRemove = new ArrayList<>();
-        tempToRemove.addAll(callBackInfos);
-
-        for (CallBackInfo callBackInfo : tempToRemove) {
-            Tuple tuple = tryRead(callBackInfo.getTemplate());
-
-            // if there is an occurence of the tuple template (of the callback)
-            if (tuple != null) {
-                if (callBackInfo.getMode() == eventMode.READ) {
-                    callBackInfo.getCallback().call(tuple);
-                    callBacksToRemove.add(callBackInfo);
-                } else if (callBackInfo.getMode() == eventMode.TAKE) {
-                    callBackInfo.getCallback().call(take(callBackInfo.getTemplate()));
-                    callBacksToRemove.add(callBackInfo);
-                }
+        callBackLock.lock();
+        for (CallBackInfo callBackInfo : callBackInfos) {
+            if (isTemplateOccurrence(callBackInfo.getTemplate())) {
+                callBacksToTrigger.add(callBackInfo);
             }
         }
+        callBackInfos.removeAll(callBacksToTrigger);
+        callBackLock.unlock();
 
-        callBackInfos.removeAll(callBacksToRemove);
+        for (CallBackInfo callBackInfo : callBacksToTrigger) {
+            if (callBackInfo.getMode() == eventMode.READ) {
+                callBackInfo.getCallback().call(read(callBackInfo.getTemplate()));
+            } else if (callBackInfo.getMode() == eventMode.TAKE) {
+                callBackInfo.getCallback().call(take(callBackInfo.getTemplate()));
+            }
+        }
     }
 }
