@@ -3,7 +3,7 @@ package linda.test;
 import linda.Linda;
 import linda.Tuple;
 
-public class TestRead {
+public class TestTake {
 
     public static void main(String[] a) {
 
@@ -17,18 +17,18 @@ public class TestRead {
 
             Tuple motif = new Tuple(Integer.class, String.class);
 
-            Tuple res = linda.read(motif);
-            System.out.println("\n(1) Reading Int, String -> " + res);
+            Tuple res = linda.take(motif);
+            System.out.println("\n(1) Taking Int, String -> " + res);
             // expect [ 4 "foo" ]
 
             linda.debug("(1)");
 
-            Tuple res2 = linda.take(motif);
-            System.out.println("\n(1) Taking Int, String -> " + res2);
-            // expect [ 4 "foo" ]
+            Tuple res2 = linda.read(motif);
+            System.out.println("\n(1) Reading Int, String -> " + res2);
+            // expect [ 19 "foo2" ]
 
-            res = linda.read(motif);
-            System.out.println("\n(1) Reading Int, String -> " + res);
+            res = linda.take(motif);
+            System.out.println("\n(1) Taking Int, String -> " + res);
             // expect [ 19 "foo2" ]
 
             linda.debug("(1)");
@@ -37,6 +37,7 @@ public class TestRead {
         new Thread(() -> {
 
             generic.threadSleep(1000);
+
 
             Tuple t1 = new Tuple(4, 5);
             System.out.println("(2) write: " + t1);

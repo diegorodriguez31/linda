@@ -152,11 +152,12 @@ public class CentralizedLinda implements Linda {
     @Override
     public void debug(String prefix) {
         lock.lock();
-        System.out.println("\nStart Debugging " + prefix);
+        System.out.println("\nTuple Space content " + prefix + "--------------");
         for (Tuple tuple : tuplesSpace) {
             System.out.println(tuple.toString());
         }
-        System.out.println("Debugging Finished " + prefix + "\n");
+        System.out.println("-----------" + prefix + "--------------");
+
         lock.unlock();
     }
 }
