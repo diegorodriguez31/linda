@@ -4,9 +4,7 @@ import linda.Callback;
 import linda.Linda;
 import linda.Tuple;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -14,26 +12,42 @@ import java.util.concurrent.locks.ReentrantLock;
 public class CentralizedLinda implements Linda {
     private List<Tuple> tuplesSpace;
     private List<CallBackInfo> callBackInfos;
-    private final Lock tupleSpaceLock;
 
     private final Lock callBackLock;
+
+    private List<Request> requests;
+    private Lock moniteur;
 
 
     public CentralizedLinda() {
         tuplesSpace = new ArrayList<>();
         callBackInfos = new ArrayList<>();
-        tupleSpaceLock = new ReentrantLock();
         callBackLock = new ReentrantLock();
+
+        moniteur = new ReentrantLock();
+        requests = new ArrayList<>();
     }
 
     @Override
     public void write(Tuple t) {
-        synchronized (this) {
-            tupleSpaceLock.lock();
-            tuplesSpace.add(t);
-            tupleSpaceLock.unlock();
-            notifyAll();
+        moniteur.lock();
+
+        tuplesSpace.add(t);
+
+        List<Request> temp = new ArrayList<>(requests);
+        for (Request req : temp) {
+            if (t.matches(req.getTuple())) {
+                if(req.getRequestType() == eventMode.READ) {
+                    requests.remove(req);
+                    req.getCondition().signal();
+                } else if (req.getRequestType() == eventMode.TAKE) {
+                    requests.remove(req);
+                    req.getCondition().signal();
+                }
+            }
         }
+
+        moniteur.unlock();
 
         manageCallbacks();
     }
@@ -43,27 +57,41 @@ public class CentralizedLinda implements Linda {
     @Override
     public Tuple take(Tuple template) {
         Tuple res = null;
-        synchronized(this) {
-            while (!isTemplateOccurrence(template)) {
-                try {
-                    wait();
 
-                    //variablteCondition.wait();
-                } catch (Exception e) {
-                    System.out.println(e);
+        moniteur.lock();
+        if (!isTemplateOccurrence(template)) {
+            Request request = new Request(template, moniteur.newCondition(), eventMode.TAKE);
+            requests.add(request);
+            try {
+                request.getCondition().await();
+
+                for (Tuple tuple : tuplesSpace) {
+                    if (tuple.matches(template)) {
+                        res = tuple;
+                        break;
+                    }
                 }
-            }
 
-            tupleSpaceLock.lock();
+                // bloquer si le tuple n'est plus présent => retour en début de boucle
+                // priorité au signaleur
+                if (res == null) {
+                    moniteur.unlock();
+                    return take(template);
+                }
+
+            } catch (Exception e) {
+                System.out.println(e);
+            }
+        } else {
             for (Tuple tuple : tuplesSpace) {
                 if (tuple.matches(template)) {
-                    tuplesSpace.remove(tuple);
                     res = tuple;
                     break;
                 }
             }
-            tupleSpaceLock.unlock();
         }
+        tuplesSpace.remove(res);
+        moniteur.unlock();
         return res;
     }
 
@@ -71,46 +99,60 @@ public class CentralizedLinda implements Linda {
     public Tuple read(Tuple template) {
         Tuple res = null;
 
-        synchronized(this) {
-            while (!isTemplateOccurrence(template)) {
-                try {
-                    wait();
-                } catch (Exception e) {
-                    System.out.println(e);
-                }
-            }
+        moniteur.lock();
+        if (!isTemplateOccurrence(template)) {
+            Request request = new Request(template, moniteur.newCondition(), eventMode.READ);
+            requests.add(request);
+            try {
+                request.getCondition().await();
 
-            tupleSpaceLock.lock();
+                for (Tuple tuple : tuplesSpace) {
+                    if (tuple.matches(template)) {
+                        res = tuple.deepclone();
+                        break;
+                    }
+                }
+
+                // bloquer si le tuple n'est plus présent => retour en début de boucle
+                // priorité au signaleur
+                if (res == null) {
+                    moniteur.unlock();
+                    return read(template);
+                }
+
+            } catch (Exception e) {
+                System.out.println(e);
+            }
+        } else {
             for (Tuple tuple : tuplesSpace) {
                 if (tuple.matches(template)) {
                     res = tuple.deepclone();
                     break;
                 }
             }
-            tupleSpaceLock.unlock();
         }
-
+        moniteur.unlock();
         return res;
     }
 
     @Override
     public Tuple tryTake(Tuple template) {
-        tupleSpaceLock.lock();
+        moniteur.lock();
         Tuple res = null;
         for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
-                tuplesSpace.remove(tuple);
                 res = tuple;
                 break;
             }
         }
-        tupleSpaceLock.unlock();
+        tuplesSpace.remove(res);
+        moniteur.unlock();
         return res;
     }
 
     @Override
     public Tuple tryRead(Tuple template) {
-        tupleSpaceLock.lock();
+        moniteur.lock();
         Tuple res = null;
         for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
@@ -118,39 +160,35 @@ public class CentralizedLinda implements Linda {
                 break;
             }
         }
-        tupleSpaceLock.unlock();
+        moniteur.unlock();
         return res;
     }
 
     @Override
     public Collection<Tuple> takeAll(Tuple template) {
         List<Tuple> res = new ArrayList<>();
-        tupleSpaceLock.lock();
+        moniteur.lock();
 
-        for (Tuple tuple : tuplesSpace) { // TODO: Question utiliser iterator ???
+        for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
                 res.add(tuple);
             }
         }
-
-        for (Tuple tuple : res) {
-            tuplesSpace.remove(tuple);
-        }
-
-        tupleSpaceLock.unlock();
+        tuplesSpace.removeAll(res);
+        moniteur.unlock();
         return res;
     }
 
     @Override
     public Collection<Tuple> readAll(Tuple template) {
         List<Tuple> res = new ArrayList<>();
-        tupleSpaceLock.lock();
+        moniteur.lock();
         for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
                 res.add(tuple.deepclone());
             }
         }
-        tupleSpaceLock.unlock();
+        moniteur.unlock();
         return res;
     }
 
@@ -172,17 +210,13 @@ public class CentralizedLinda implements Linda {
 
     @Override
     public void debug(String prefix) {
-        tupleSpaceLock.lock();
+        moniteur.lock();
         System.out.println("\nStart Debugging " + prefix);
         for (Tuple tuple : tuplesSpace) {
             System.out.println(tuple.toString());
         }
         System.out.println("Debugging Finished " + prefix + "\n");
-        tupleSpaceLock.unlock();
-    }
-
-    public boolean isTemplateOccurrence(Tuple template){
-        return tryRead(template) != null;
+        moniteur.unlock();
     }
 
     public void manageCallbacks(){
@@ -204,5 +238,9 @@ public class CentralizedLinda implements Linda {
                 callBackInfo.getCallback().call(take(callBackInfo.getTemplate()));
             }
         }
+    }
+
+    public boolean isTemplateOccurrence(Tuple template){
+        return tryRead(template) != null;
     }
 }
