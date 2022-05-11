@@ -1,9 +1,12 @@
-package linda.test;
+package linda.customTest.MultipleThreads;
 
 import linda.Linda;
 import linda.Tuple;
+import linda.customTest.GenericTestMethod;
 
-public class TestReadMultipleThreads {
+import java.util.Collection;
+
+public class TestReadAllMultipleThreads {
 
     public static void main(String[] a) {
 
@@ -19,9 +22,9 @@ public class TestReadMultipleThreads {
 
                 Tuple motif = new Tuple(Integer.class, String.class);
 
-                Tuple res = linda.read(motif);
-                System.out.println("\n(" + j + ") Reading Int, String -> " + res);
-                // expect [ 1 "foo1" ] for every thread
+                Collection<Tuple> res = linda.readAll(motif);
+                System.out.println("\n(" + j + ") Reading All Int, String -> " + res);
+                // expect [[ 1 "foo1" ], [ 2 "foo2" ], [ 3 "foo3" ]] for every thread
 
                 linda.debug("(" + j + ")");
 
@@ -38,9 +41,9 @@ public class TestReadMultipleThreads {
                 // Waiting thread 1 take the first one
                 generic.threadSleep(2000);
 
-                res = linda.read(motif);
-                System.out.println("\n(" + j + ") Reading Int, String -> " + res);
-                // expect [ 2 "foo2" ] for every thread
+                res = linda.readAll(motif);
+                System.out.println("\n(" + j + ") Reading All Int, String -> " + res);
+                // expect [[ 2 "foo2" ], [ 3 "foo3" ]] for every thread
 
                 // Waiting for the other threads read
                 generic.threadSleep(2000);
@@ -50,10 +53,8 @@ public class TestReadMultipleThreads {
         }
 
         new Thread(() -> {
-            generic.createTuples(generic, linda);
-
+            generic.createTuplesForMultipleThreads(linda);
             linda.debug("(0)");
-
         }).start();
 
     }

@@ -1,9 +1,12 @@
-package linda.test;
+package linda.customTest.MultipleThreads;
 
 import linda.Linda;
 import linda.Tuple;
+import linda.customTest.GenericTestMethod;
 
-public class TestTakeMultipleThreads {
+import java.util.Collection;
+
+public class TestTryTakeMultipleThreads {
 
     public static void main(String[] a) {
 
@@ -19,39 +22,32 @@ public class TestTakeMultipleThreads {
 
                 Tuple motif = new Tuple(Integer.class, String.class);
 
-                Tuple res = linda.take(motif);
-                System.out.println("\n(" + j + ") Taking Int, String -> " + res);
-                // expect each thread taking one of the three first tuples
+                Tuple res = linda.tryTake(motif);
+                System.out.println("\n(" + j + ") Try Taking Int, String -> " + res);
+                // expect [[ 1 "foo1" ], [ 2 "foo2" ], [ 3 "foo3" ]] for every thread
 
                 linda.debug("(" + j + ")");
 
                 // Waiting for the other threads print the debug
                 generic.threadSleep(2000);
 
-
-                res = linda.read(motif);
-                System.out.println("\n(" + j + ") Reading Int, String -> " + res);
-                // expect [ "foo4" "foo4" ] for every thread
+                res = linda.tryTake(motif);
+                System.out.println("\n(" + j + ") Try Taking Int, String -> " + res);
+                // expect null for every thread
 
                 // Waiting for the other threads read
                 generic.threadSleep(2000);
-
 
                 linda.debug("(" + j + ")");
             }).start();
         }
 
         new Thread(() -> {
-
-            generic.createTuples(generic, linda);
-
-            Tuple t4 = new Tuple(4, "foo4");
-            System.out.println("(0) write: " + t4);
-            linda.write(t4);
-
+            generic.createTuplesForMultipleThreads(linda);
             linda.debug("(0)");
-
         }).start();
 
     }
+
+
 }

@@ -1,7 +1,8 @@
-package linda.test;
+package linda.customTest.SingleThread;
 
 import linda.Linda;
 import linda.Tuple;
+import linda.customTest.GenericTestMethod;
 
 public class TestTake {
 
@@ -35,32 +36,8 @@ public class TestTake {
         }).start();
 
         new Thread(() -> {
-
-            generic.threadSleep(1000);
-
-
-            Tuple t1 = new Tuple(4, 5);
-            System.out.println("(2) write: " + t1);
-            linda.write(t1);
-
-            Tuple t11 = new Tuple(4, 5);
-            System.out.println("(2) write: " + t11);
-            linda.write(t11);
-
-            Tuple t2 = new Tuple("hello", 15);
-            System.out.println("(2) write: " + t2);
-            linda.write(t2);
-
-            Tuple t3 = new Tuple(4, "foo");
-            System.out.println("(2) write: " + t3);
-            linda.write(t3);
-
-            Tuple t4 = new Tuple(19, "foo2");
-            System.out.println("(2) write " + t4);
-            linda.write(t4);
-
+            generic.createTuples(linda);
             linda.debug("(2)");
-
         }).start();
     }
 }
