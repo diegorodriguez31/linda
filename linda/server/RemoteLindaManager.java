@@ -7,7 +7,7 @@ import linda.Tuple;
 import java.rmi.RemoteException;
 import java.util.Collection;
 
-public interface RemoteLinda extends java.rmi.Remote {
+public interface RemoteLindaManager extends java.rmi.Remote {
 
     public void write(Tuple t) throws RemoteException;
 
@@ -23,7 +23,7 @@ public interface RemoteLinda extends java.rmi.Remote {
 
     public Collection<Tuple> readAll(Tuple template) throws RemoteException;
 
-    void eventRegister(Linda.eventMode mode, Linda.eventTiming timing, Tuple template, Callback callback) throws RemoteException;
+    void eventRegister(Linda.eventMode mode, Linda.eventTiming timing, Tuple template, RemoteCallback callback) throws RemoteException;
 
     public void debug(String prefix) throws RemoteException;
 }

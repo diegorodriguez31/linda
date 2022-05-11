@@ -12,7 +12,7 @@ public class LindaServer {
         try {
             dns = LocateRegistry.createRegistry(1099);
 
-            RemoteLinda linda = new RemoteLindaImpl();
+            RemoteLindaManager linda = new RemoteLindaManagerImpl();
             dns.bind("MyLinda", linda);
         } catch (Exception e) {
             System.out.println(e.getMessage());

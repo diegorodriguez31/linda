@@ -11,7 +11,7 @@ import java.util.Collection;
  * It implements the Linda interface and propagates everything to the server it is connected to.
  * */
 public class LindaClient implements Linda {
-    private RemoteLinda linda;
+    private RemoteLindaManager lindaManager;
 
     /** Initializes the Linda implementation.
      *  @param serverURI the URI of the server, e.g. "rmi://localhost:4000/LindaServer" or "//localhost:4000/LindaServer".
@@ -26,7 +26,7 @@ public class LindaClient implements Linda {
 
         //  Connexion au serveur de noms (obtention d'un handle)
         try {
-            linda = (RemoteLinda) Naming.lookup("rmi://"+registryhost+"/MyLinda");
+            lindaManager = (RemoteLindaManager) Naming.lookup("rmi://"+registryhost+"/MyLinda");
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
@@ -35,7 +35,7 @@ public class LindaClient implements Linda {
     @Override
     public void write(Tuple t) {
         try {
-            linda.write(t);
+            lindaManager.write(t);
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
@@ -44,7 +44,7 @@ public class LindaClient implements Linda {
     @Override
     public Tuple take(Tuple template) {
         try {
-            return linda.take(template);
+            return lindaManager.take(template);
         } catch (Exception e) {
             System.out.println(e.getMessage());
             return null;
@@ -54,7 +54,7 @@ public class LindaClient implements Linda {
     @Override
     public Tuple read(Tuple template) {
         try {
-            return linda.read(template);
+            return lindaManager.read(template);
         } catch (Exception e) {
             System.out.println(e.getMessage());
             return null;
@@ -64,7 +64,7 @@ public class LindaClient implements Linda {
     @Override
     public Tuple tryTake(Tuple template) {
         try {
-            return linda.tryTake(template);
+            return lindaManager.tryTake(template);
         } catch (Exception e) {
             System.out.println(e.getMessage());
             return null;
@@ -74,7 +74,7 @@ public class LindaClient implements Linda {
     @Override
     public Tuple tryRead(Tuple template) {
         try {
-            return linda.tryRead(template);
+            return lindaManager.tryRead(template);
         } catch (Exception e) {
             System.out.println(e.getMessage());
             return null;
@@ -84,7 +84,7 @@ public class LindaClient implements Linda {
     @Override
     public Collection<Tuple> takeAll(Tuple template) {
         try {
-            return linda.takeAll(template);
+            return lindaManager.takeAll(template);
         } catch (Exception e) {
             System.out.println(e.getMessage());
             return null;
@@ -94,7 +94,7 @@ public class LindaClient implements Linda {
     @Override
     public Collection<Tuple> readAll(Tuple template) {
         try {
-            return linda.readAll(template);
+            return lindaManager.readAll(template);
         } catch (Exception e) {
             System.out.println(e.getMessage());
             return null;
@@ -104,7 +104,7 @@ public class LindaClient implements Linda {
     @Override
     public void eventRegister(eventMode mode, eventTiming timing, Tuple template, Callback callback) {
         try {
-            linda.eventRegister(mode, timing, template, callback);
+            lindaManager.eventRegister(mode, timing, template, new RemoteCallbackImpl(callback));
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
@@ -113,7 +113,7 @@ public class LindaClient implements Linda {
     @Override
     public void debug(String prefix) {
         try {
-            linda.debug(prefix);
+            lindaManager.debug(prefix);
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
