@@ -32,7 +32,7 @@ public class CentralizedLinda implements Linda {
     public void write(Tuple t) {
         moniteur.lock();
 
-        tuplesSpace.add(t);
+        tuplesSpace.add(0, t);
 
         List<Request> temp = new ArrayList<>(requests);
         for (Request req : temp) {
@@ -152,6 +152,7 @@ public class CentralizedLinda implements Linda {
         for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
                 res = tuple.deepclone();
+                break;
             }
         }
         moniteur.unlock();
