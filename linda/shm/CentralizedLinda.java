@@ -4,9 +4,7 @@ import linda.Callback;
 import linda.Linda;
 import linda.Tuple;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -14,34 +12,44 @@ import java.util.concurrent.locks.ReentrantLock;
 public class CentralizedLinda implements Linda {
     private List<Tuple> tuplesSpace;
     private List<CallBackInfo> callBackInfos;
-    private final Lock lock ;
+
+    private final Lock callBackLock;
+
+    private List<Request> requests;
+    private Lock moniteur;
 
 
     public CentralizedLinda() {
         tuplesSpace = new ArrayList<>();
         callBackInfos = new ArrayList<>();
-        lock = new ReentrantLock(); // true to be fair & can be changed
-    }
+        callBackLock = new ReentrantLock();
 
-    // TO BE COMPLETED
+        moniteur = new ReentrantLock();
+        requests = new ArrayList<>();
+    }
 
     @Override
     public void write(Tuple t) {
-        lock.lock();
-        tuplesSpace.add(t);
-        lock.unlock();
+        moniteur.lock();
 
-        for (CallBackInfo callBackInfo: callBackInfos) {
-            Tuple tuple = tryRead(callBackInfo.getTemplate());
-            if(tuple != null){
-                if (callBackInfo.getMode() == eventMode.READ) {
-                    callBackInfo.getCallback().call(tuple);
-                }
-                else if (callBackInfo.getMode() == eventMode.TAKE) {
-                    callBackInfo.getCallback().call(take(callBackInfo.getTemplate()));
+        tuplesSpace.add(t);
+
+        List<Request> temp = new ArrayList<>(requests);
+        for (Request req : temp) {
+            if (t.matches(req.getTuple())) {
+                if(req.getRequestType() == eventMode.READ) {
+                    requests.remove(req);
+                    req.getCondition().signal();
+                } else if (req.getRequestType() == eventMode.TAKE) {
+                    requests.remove(req);
+                    req.getCondition().signal();
                 }
             }
         }
+
+        moniteur.unlock();
+
+        manageCallbacks();
     }
 
     /** Returns a tuple matching the template and removes it from the tuplespace.
@@ -49,87 +57,138 @@ public class CentralizedLinda implements Linda {
     @Override
     public Tuple take(Tuple template) {
         Tuple res = null;
-        while (res == null) {
-            lock.lock();
+
+        moniteur.lock();
+        if (!isTemplateOccurrence(template)) {
+            Request request = new Request(template, moniteur.newCondition(), eventMode.TAKE);
+            requests.add(request);
+            try {
+                request.getCondition().await();
+
+                for (Tuple tuple : tuplesSpace) {
+                    if (tuple.matches(template)) {
+                        res = tuple;
+                        break;
+                    }
+                }
+
+                // bloquer si le tuple n'est plus présent => retour en début de boucle
+                // priorité au signaleur
+                if (res == null) {
+                    moniteur.unlock();
+                    return take(template);
+                }
+
+            } catch (Exception e) {
+                System.out.println(e);
+            }
+        } else {
             for (Tuple tuple : tuplesSpace) {
-                if(tuple.matches(template)) {
-                    tuplesSpace.remove(tuple);
+                if (tuple.matches(template)) {
                     res = tuple;
                     break;
                 }
             }
-            lock.unlock();
         }
+        tuplesSpace.remove(res);
+        moniteur.unlock();
         return res;
     }
 
     @Override
     public Tuple read(Tuple template) {
         Tuple res = null;
-        while (res == null) {
-            lock.lock();
+
+        moniteur.lock();
+        if (!isTemplateOccurrence(template)) {
+            Request request = new Request(template, moniteur.newCondition(), eventMode.READ);
+            requests.add(request);
+            try {
+                request.getCondition().await();
+
+                for (Tuple tuple : tuplesSpace) {
+                    if (tuple.matches(template)) {
+                        res = tuple.deepclone();
+                        break;
+                    }
+                }
+
+                // bloquer si le tuple n'est plus présent => retour en début de boucle
+                // priorité au signaleur
+                if (res == null) {
+                    moniteur.unlock();
+                    return read(template);
+                }
+
+            } catch (Exception e) {
+                System.out.println(e);
+            }
+        } else {
             for (Tuple tuple : tuplesSpace) {
-                if(tuple.matches(template)) {
+                if (tuple.matches(template)) {
                     res = tuple.deepclone();
                     break;
                 }
             }
-            lock.unlock();
         }
+        moniteur.unlock();
         return res;
     }
 
     @Override
     public Tuple tryTake(Tuple template) {
-        lock.lock();
+        moniteur.lock();
         Tuple res = null;
         for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
                 res = tuple;
-                tuplesSpace.remove(tuple);
+                break;
             }
         }
-        lock.unlock();
+        tuplesSpace.remove(res);
+        moniteur.unlock();
         return res;
     }
 
     @Override
     public Tuple tryRead(Tuple template) {
-        lock.lock();
+        moniteur.lock();
         Tuple res = null;
         for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
                 res = tuple.deepclone();
+                break;
             }
         }
-        lock.unlock();
+        moniteur.unlock();
         return res;
     }
 
     @Override
     public Collection<Tuple> takeAll(Tuple template) {
         List<Tuple> res = new ArrayList<>();
-        lock.lock();
+        moniteur.lock();
+
         for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
                 res.add(tuple);
-                tuplesSpace.remove(tuple);
             }
         }
-        lock.unlock();
+        tuplesSpace.removeAll(res);
+        moniteur.unlock();
         return res;
     }
 
     @Override
     public Collection<Tuple> readAll(Tuple template) {
         List<Tuple> res = new ArrayList<>();
-        lock.lock();
+        moniteur.lock();
         for (Tuple tuple : tuplesSpace) {
             if(tuple.matches(template)) {
                 res.add(tuple.deepclone());
             }
         }
-        lock.unlock();
+        moniteur.unlock();
         return res;
     }
 
@@ -151,12 +210,37 @@ public class CentralizedLinda implements Linda {
 
     @Override
     public void debug(String prefix) {
-        lock.lock();
+        moniteur.lock();
         System.out.println("\nStart Debugging " + prefix);
         for (Tuple tuple : tuplesSpace) {
             System.out.println(tuple.toString());
         }
         System.out.println("Debugging Finished " + prefix + "\n");
-        lock.unlock();
+        moniteur.unlock();
+    }
+
+    public void manageCallbacks(){
+        List<CallBackInfo> callBacksToTrigger = new ArrayList<>();
+
+        callBackLock.lock();
+        for (CallBackInfo callBackInfo : callBackInfos) {
+            if (isTemplateOccurrence(callBackInfo.getTemplate())) {
+                callBacksToTrigger.add(callBackInfo);
+            }
+        }
+        callBackInfos.removeAll(callBacksToTrigger);
+        callBackLock.unlock();
+
+        for (CallBackInfo callBackInfo : callBacksToTrigger) {
+            if (callBackInfo.getMode() == eventMode.READ) {
+                callBackInfo.getCallback().call(read(callBackInfo.getTemplate()));
+            } else if (callBackInfo.getMode() == eventMode.TAKE) {
+                callBackInfo.getCallback().call(take(callBackInfo.getTemplate()));
+            }
+        }
+    }
+
+    public boolean isTemplateOccurrence(Tuple template){
+        return tryRead(template) != null;
     }
 }
