@@ -87,4 +87,7 @@ public class RemoteLindaManagerImpl extends UnicastRemoteObject implements Remot
             }
         }
     }
+    public boolean checkStatus() throws RemoteException {
+        return true;
+    }
 }

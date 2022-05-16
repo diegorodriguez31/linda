@@ -4,6 +4,7 @@ import linda.Callback;
 import linda.Linda;
 import linda.Tuple;
 
+import java.rmi.RemoteException;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -161,10 +162,11 @@ public class CentralizedLinda implements Linda {
 
     @Override
     public Collection<Tuple> takeAll(Tuple template) {
+        boolean takeAllTuples = template == null;
         List<Tuple> res = new ArrayList<>();
         moniteur.lock();
         for (Tuple tuple : tuplesSpace) {
-            if(tuple.matches(template)) {
+            if(takeAllTuples || tuple.matches(template)) {
                 res.add(tuple);
             }
         }
@@ -175,10 +177,11 @@ public class CentralizedLinda implements Linda {
 
     @Override
     public Collection<Tuple> readAll(Tuple template) {
+        boolean readAllTuples = template == null;
         List<Tuple> res = new ArrayList<>();
         moniteur.lock();
         for (Tuple tuple : tuplesSpace) {
-            if(tuple.matches(template)) {
+            if(readAllTuples || tuple.matches(template)) {
                 res.add(tuple.deepclone());
             }
         }

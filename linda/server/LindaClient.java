@@ -4,7 +4,11 @@ import linda.Callback;
 import linda.Linda;
 import linda.Tuple;
 
+import java.net.MalformedURLException;
+import java.rmi.ConnectException;
 import java.rmi.Naming;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
 import java.util.Collection;
 
 /** Client part of a client/server implementation of Linda.
@@ -30,6 +34,35 @@ public class LindaClient implements Linda {
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
+
+        new Thread() {
+            public void run() {
+                while (true) {
+                    try {
+                        checkServerStatus();
+                    } catch (ConnectException e) {
+                        System.out.println("server out");
+                    } catch (Exception e) {
+                        System.out.println(e.getMessage());
+                    }
+                }
+            }
+        }.start();
+    }
+
+    public boolean checkServerStatus() throws MalformedURLException, NotBoundException, RemoteException {
+        String backupURI = "localhost:1098";
+        try {
+            if (lindaManager == null || !lindaManager.checkStatus()) {
+                lindaManager = (RemoteLindaManager) Naming.lookup("rmi://"+backupURI+"/MyLinda");
+                System.out.println("Server changed to rmi://"+backupURI+"/MyLinda");
+                return false;
+            }
+        } catch (Exception e) {
+            lindaManager = (RemoteLindaManager) Naming.lookup("rmi://"+backupURI+"/MyLinda");
+            System.out.println("Server changed to rmi://"+backupURI+"/MyLinda");
+        }
+        return true;
     }
 
     @Override
@@ -117,5 +150,9 @@ public class LindaClient implements Linda {
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
+    }
+
+    public boolean checkStatus() throws RemoteException {
+        return lindaManager.checkStatus();
     }
 }

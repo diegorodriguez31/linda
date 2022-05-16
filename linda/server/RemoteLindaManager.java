@@ -26,4 +26,5 @@ public interface RemoteLindaManager extends java.rmi.Remote {
     void eventRegister(Linda.eventMode mode, Linda.eventTiming timing, Tuple template, RemoteCallback callback) throws RemoteException;
 
     public void debug(String prefix) throws RemoteException;
+    public boolean checkStatus() throws RemoteException;
 }
