@@ -41,9 +41,9 @@ public class LindaServer {
                 Thread.sleep(5000);
                 if (isMainServer) {
                     sendCopyToBackUp(linda, lindaClient);
-                    saveTuples(linda);
-
                     // TODO: gérer les callbacks
+
+                    saveTuples(linda);
                 }
             }
         } catch (ConnectException e) {
@@ -83,7 +83,7 @@ public class LindaServer {
         }
     }
 
-    public static void loadSave(RemoteLindaManager linda) throws RemoteException {
+    public static void loadSave(RemoteLindaManager linda) {
         BufferedWriter writer = null;
         try {
             File file = new File("linda/server/save/save.txt");
@@ -95,8 +95,8 @@ public class LindaServer {
                 linda.write(Tuple.valueOf(line));
             }
             System.out.println("Load complete\n");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
         }
     }
 }

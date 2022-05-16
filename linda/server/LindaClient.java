@@ -35,7 +35,7 @@ public class LindaClient implements Linda {
             System.out.println(e.getMessage());
         }
 
-        new Thread() {
+       /* new Thread() {
             public void run() {
                 while (true) {
                     try {
@@ -47,7 +47,7 @@ public class LindaClient implements Linda {
                     }
                 }
             }
-        }.start();
+        }.start();*/
     }
 
     public boolean checkServerStatus() throws MalformedURLException, NotBoundException, RemoteException {
