@@ -244,8 +244,7 @@ public class CentralizedLinda implements Linda {
             }
 
             if(tuple != null) {
-                Callback a = callBackInfo.getCallback();
-                a.call(tuple);
+                callBackInfo.getCallback().call(tuple);
             } else {
                 callBackLock.lock();
                 callBackInfos.add(new CallBackInfo(callBackInfo.getMode(), callBackInfo.getTemplate(), callBackInfo.getCallback()));
