@@ -193,5 +193,4 @@ public class Tuple extends LinkedList<Serializable> implements Serializable {
           throw new TupleFormatException("Trailing chars after ']'");
         return res;
     }
-
 }
