@@ -3,11 +3,7 @@ package linda.server;
 import linda.Callback;
 import linda.Linda;
 import linda.Tuple;
-
-import java.net.MalformedURLException;
-import java.rmi.ConnectException;
 import java.rmi.Naming;
-import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.Collection;
 
@@ -16,12 +12,12 @@ import java.util.Collection;
  * */
 public class LindaClient implements Linda {
     private RemoteLindaManager lindaManager;
+    private String registryhost;
 
     /** Initializes the Linda implementation.
      *  @param serverURI the URI of the server, e.g. "rmi://localhost:4000/LindaServer" or "//localhost:4000/LindaServer".
      */
     public LindaClient(String serverURI) {
-        String registryhost;
         if (serverURI.length() >= 1) {
             registryhost = serverURI;
         } else {
@@ -35,32 +31,38 @@ public class LindaClient implements Linda {
             System.out.println(e.getMessage());
         }
 
-       /* new Thread() {
+        new Thread() {
             public void run() {
                 while (true) {
                     try {
+                        Thread.sleep(5000);
                         checkServerStatus();
-                    } catch (ConnectException e) {
-                        System.out.println("server out");
                     } catch (Exception e) {
                         System.out.println(e.getMessage());
                     }
                 }
             }
-        }.start();*/
+        }.start();
     }
 
-    public boolean checkServerStatus() throws MalformedURLException, NotBoundException, RemoteException {
-        String backupURI = "localhost:1098";
+    public boolean checkServerStatus() {
+        registryhost = registryhost.equals("localhost:1098") ? "localhost:1099" : "localhost:1098";
+        boolean needSeverSwitch = false;
+
         try {
-            if (lindaManager == null || !lindaManager.checkStatus()) {
-                lindaManager = (RemoteLindaManager) Naming.lookup("rmi://"+backupURI+"/MyLinda");
-                System.out.println("Server changed to rmi://"+backupURI+"/MyLinda");
+            lindaManager.checkStatus();
+        } catch (RemoteException e) {
+            needSeverSwitch = true;
+        }
+
+        if (needSeverSwitch){
+            try {
+                lindaManager = (RemoteLindaManager) Naming.lookup("rmi://"+registryhost+"/MyLinda");
+                System.out.println("Server changed to rmi://"+registryhost+"/MyLinda");
+            } catch (Exception e) {
+                System.out.println(e.getMessage());
                 return false;
             }
-        } catch (Exception e) {
-            lindaManager = (RemoteLindaManager) Naming.lookup("rmi://"+backupURI+"/MyLinda");
-            System.out.println("Server changed to rmi://"+backupURI+"/MyLinda");
         }
         return true;
     }
@@ -69,8 +71,8 @@ public class LindaClient implements Linda {
     public void write(Tuple t) {
         try {
             lindaManager.write(t);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        } catch (RemoteException e) {
+            checkServerStatus();
         }
     }
 
@@ -78,8 +80,8 @@ public class LindaClient implements Linda {
     public Tuple take(Tuple template) {
         try {
             return lindaManager.take(template);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        } catch (RemoteException e) {
+            checkServerStatus();
             return null;
         }
     }
@@ -88,8 +90,8 @@ public class LindaClient implements Linda {
     public Tuple read(Tuple template) {
         try {
             return lindaManager.read(template);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        } catch (RemoteException e) {
+            checkServerStatus();
             return null;
         }
     }
@@ -98,8 +100,8 @@ public class LindaClient implements Linda {
     public Tuple tryTake(Tuple template) {
         try {
             return lindaManager.tryTake(template);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        } catch (RemoteException e) {
+            checkServerStatus();
             return null;
         }
     }
@@ -108,8 +110,8 @@ public class LindaClient implements Linda {
     public Tuple tryRead(Tuple template) {
         try {
             return lindaManager.tryRead(template);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        } catch (RemoteException e) {
+            checkServerStatus();
             return null;
         }
     }
@@ -118,8 +120,8 @@ public class LindaClient implements Linda {
     public Collection<Tuple> takeAll(Tuple template) {
         try {
             return lindaManager.takeAll(template);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        } catch (RemoteException e) {
+            checkServerStatus();
             return null;
         }
     }
@@ -128,8 +130,8 @@ public class LindaClient implements Linda {
     public Collection<Tuple> readAll(Tuple template) {
         try {
             return lindaManager.readAll(template);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        } catch (RemoteException e) {
+            checkServerStatus();
             return null;
         }
     }
@@ -138,8 +140,8 @@ public class LindaClient implements Linda {
     public void eventRegister(eventMode mode, eventTiming timing, Tuple template, Callback callback) {
         try {
             lindaManager.eventRegister(mode, timing, template, new RemoteCallbackImpl(callback));
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        } catch (RemoteException e) {
+            checkServerStatus();
         }
     }
 
@@ -147,8 +149,8 @@ public class LindaClient implements Linda {
     public void debug(String prefix) {
         try {
             lindaManager.debug(prefix);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        } catch (RemoteException e) {
+            checkServerStatus();
         }
     }
 

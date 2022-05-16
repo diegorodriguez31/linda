@@ -15,11 +15,13 @@ public class LindaServer {
     public static void main (String args[]) {
         Registry dns = null;
         RemoteLindaManager linda = null;
-        String backupURI = "localhost:1098";
+        String serverURI = args[0];
+        String backupURI = serverURI.equals("localhost:1099") ? "localhost:1098" : "localhost:1099";
+        int port = serverURI.equals("localhost:1099") ? 1099 : 1098;
 
         //  Création du serveur de noms
         try {
-            dns = LocateRegistry.createRegistry(1099);
+            dns = LocateRegistry.createRegistry(port);
 
             linda = new RemoteLindaManagerImpl();
             dns.bind("MyLinda", linda);
@@ -38,29 +40,6 @@ public class LindaServer {
     }
 
     public static void loadSave(RemoteLindaManager linda) {
-        /*BufferedWriter writer = null;
-        try {
-            File file = new File("linda/server/save/save.txt");
-            FileReader fr = new FileReader(file);
-            BufferedReader br = new BufferedReader(fr);
-            String line;
-            ByteArrayOutputStream buf = new ByteArrayOutputStream();
-            ObjectOutputStream out = new ObjectOutputStream (buf);
-            while((line = br.readLine()) != null)
-            {
-                try {
-                    out.writeObject (line);
-                    ObjectInputStream in = new ObjectInputStream (new ByteArrayInputStream (buf.toByteArray()));
-                    linda.write((Tuple) in.readObject());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-            System.out.println("Load complete\n");
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }*/
-
         try {
             ObjectInputStream in = new ObjectInputStream(new FileInputStream("linda/server/save/save.txt"));
 
@@ -83,7 +62,7 @@ public class LindaServer {
 
     public static void linkWithBackupServer(String backupURI, RemoteLindaManager linda){
         LindaClient lindaClient = null;
-        boolean isMainServer = true;
+        boolean isMainServer;
 
         // essayer de se connecter
         // si on y arrive pas, essayer de se reconnecter toutes les 5 secondes
@@ -92,11 +71,22 @@ public class LindaServer {
         while (true) {
             try{
                 Thread.sleep(5000);
+
+                isMainServer = backupURI.equals("localhost:1098") || !lindaClient.checkStatus();
+
                 if (isMainServer) {
+                    System.out.println("----------Main server------------");
                     sendCopyToBackUp(linda, lindaClient);
                     // TODO: gérer les callbacks
 
                     saveTuples(linda);
+                } else {
+                    System.out.println("----------Server de backup------------");
+                    System.out.println("----------new state------------");
+                    for (Tuple t : linda.readAll(null)){
+                        System.out.println(t.toString());
+                    }
+                    System.out.println("----------end state------------\n\n\n\n");
                 }
             } catch (Exception e) {
                 System.out.println(e.getMessage());
@@ -118,27 +108,13 @@ public class LindaServer {
     }
 
     public static void saveTuples(RemoteLindaManager linda) throws RemoteException {
-        BufferedWriter writer = null;
         try {
-            /*writer = new BufferedWriter(new FileWriter("linda/server/save/save.txt"));
-
-            List<Tuple> copyToBackup = (List<Tuple>) linda.readAll(null);
-            for (Tuple tuple : copyToBackup) {
-                writer.write(tuple.toString());
-                writer.append("\n");
-            }
-
-            writer.close();*/
-
             ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream("linda/server/save/save.txt"));
 
             List<Tuple> copyToBackup = (List<Tuple>) linda.readAll(null);
             for (Tuple tuple : copyToBackup) {
                 out.writeObject(tuple);
             }
-
-            //ObjectInputStream in = new ObjectInputStream(new FileInputStream(f));
-            //cp=(ConcretePage)in.readObject();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

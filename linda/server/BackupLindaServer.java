@@ -36,33 +36,11 @@ public class BackupLindaServer {
         try {
             while (true) {
                 Thread.sleep(5000);
-                //TODO: isMainServer = lindaClient == null || !lindaClient.checkStatus();
-
-                if(isMainServer) {
-                    System.out.println("\n\n\nI am the main server now !!!");
-                } else {
-                    System.out.println("----------new state------------");
-                    for (Tuple t : linda.readAll(null)){
-                        System.out.println(t.toString());
-                    }
-                    System.out.println("----------end state------------\n\n\n\n");
+                System.out.println("----------new state------------");
+                for (Tuple t : linda.readAll(null)){
+                    System.out.println(t.toString());
                 }
-            }
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
-    public static void sendCopyToBackUp(RemoteLindaManager linda, LindaClient lindaClient, int time) {
-        try {
-            Thread.sleep(time);
-            if (linda != null) {
-                lindaClient.takeAll(null);
-                List<Tuple> copyToBackup = (List<Tuple>) linda.readAll(null);
-
-                for (Tuple tuple : copyToBackup) {
-                    lindaClient.write(tuple);
-                }
+                System.out.println("----------end state------------\n\n\n\n");
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
