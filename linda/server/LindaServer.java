@@ -46,8 +46,8 @@ public class LindaServer {
                 for (;;) {
                     result.add((Tuple) in.readObject());
                 }
-            } catch (EOFException e) {
-                System.out.println(e.getMessage());
+            } catch (Exception e) {
+                // This is the end of the in parcours
             }
 
             for(Tuple t : result) {

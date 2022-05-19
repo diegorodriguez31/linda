@@ -4,7 +4,6 @@ import linda.Callback;
 import linda.Linda;
 import linda.Tuple;
 
-import java.rmi.RemoteException;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -24,7 +23,6 @@ public class CentralizedLinda implements Linda {
         tuplesSpace = new ArrayList<>();
         callBackInfos = new ArrayList<>();
         callBackLock = new ReentrantLock();
-
         moniteur = new ReentrantLock();
         requests = new ArrayList<>();
     }
@@ -230,14 +228,19 @@ public class CentralizedLinda implements Linda {
         List<CallBackInfo> callBacksToTrigger = new ArrayList<>();
 
         callBackLock.lock();
+
+        // get the list of all the callBacks that need to be triggered
         for (CallBackInfo callBackInfo : callBackInfos) {
             if (isTemplateOccurrence(callBackInfo.getTemplate())) {
                 callBacksToTrigger.add(callBackInfo);
             }
         }
+
+        // remove them from the list of callbacks
         callBackInfos.removeAll(callBacksToTrigger);
         callBackLock.unlock();
 
+        // call the callbacks
         for (CallBackInfo callBackInfo : callBacksToTrigger) {
             Tuple tuple = null;
             if (callBackInfo.getMode() == eventMode.READ) {
@@ -246,9 +249,14 @@ public class CentralizedLinda implements Linda {
                 tuple = tryTake(callBackInfo.getTemplate());
             }
 
+            // sometimes, 2 callbacks may wanna take the only occurence of a tuple
+            // the tuple would be null for the second callback
+            // so:
             if(tuple != null) {
+                // call the callback
                 callBackInfo.getCallback().call(tuple);
             } else {
+                // add back the callback into the list
                 callBackLock.lock();
                 callBackInfos.add(new CallBackInfo(callBackInfo.getMode(), callBackInfo.getTemplate(), callBackInfo.getCallback()));
                 callBackLock.unlock();
