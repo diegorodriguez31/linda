@@ -13,6 +13,8 @@ import java.util.Collection;
 public class LindaClient implements Linda {
     private RemoteLindaManager lindaManager;
     private String registryhost;
+    final String SERVER_URI = "localhost:1099";
+    final String BACKUP_SERVER_URI = "localhost:1098";
 
     /** Initializes the Linda implementation.
      *  @param serverURI the URI of the server, e.g. "rmi://localhost:4000/LindaServer" or "//localhost:4000/LindaServer".
@@ -21,10 +23,10 @@ public class LindaClient implements Linda {
         if (serverURI.length() >= 1) {
             registryhost = serverURI;
         } else {
-            registryhost = "localhost:1099";
+            registryhost = SERVER_URI;
         }
 
-        //  Connexion au serveur de noms (obtention d'un handle)
+        //  Connexion to the name server to get a handle on the linda Manager
         try {
             lindaManager = (RemoteLindaManager) Naming.lookup("rmi://"+registryhost+"/MyLinda");
         } catch (Exception e) {
@@ -46,7 +48,7 @@ public class LindaClient implements Linda {
     }
 
     public boolean checkServerStatus() {
-        registryhost = registryhost.equals("localhost:1098") ? "localhost:1099" : "localhost:1098";
+        String newRegistryHost = registryhost.equals(BACKUP_SERVER_URI) ? SERVER_URI : BACKUP_SERVER_URI;
         boolean needSeverSwitch = false;
 
         try {
@@ -57,8 +59,9 @@ public class LindaClient implements Linda {
 
         if (needSeverSwitch){
             try {
-                lindaManager = (RemoteLindaManager) Naming.lookup("rmi://"+registryhost+"/MyLinda");
-                System.out.println("Server changed to rmi://"+registryhost+"/MyLinda");
+                registryhost = newRegistryHost;
+                lindaManager = (RemoteLindaManager) Naming.lookup("rmi://"+newRegistryHost+"/MyLinda");
+                System.out.println("Server changed to rmi://"+newRegistryHost+"/MyLinda");
             } catch (Exception e) {
                 System.out.println(e.getMessage());
                 return false;
@@ -152,9 +155,5 @@ public class LindaClient implements Linda {
         } catch (RemoteException e) {
             checkServerStatus();
         }
-    }
-
-    public boolean checkStatus() throws RemoteException {
-        return lindaManager.checkStatus();
     }
 }

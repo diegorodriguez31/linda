@@ -10,17 +10,14 @@ import java.util.List;
 /** Création d'un serveur de nom intégré et d'un objet accessible à distance.
  *  Si la créatipon du serveur de nom échoue, on suppose qu'il existe déjà (rmiregistry) et on continue. */
 public class BackupLindaServer {
+    static final int SERVER_PORT = 1098;
     public static void main (String args[]) {
-        boolean isMainServer = false;
-
         Registry dns = null;
         RemoteLindaManager linda = null;
-        String backupURI = "localhost:1099";
 
-
-        //  Création du serveur de noms
+        //  Name server creation
         try {
-            dns = LocateRegistry.createRegistry(1098);
+            dns = LocateRegistry.createRegistry(SERVER_PORT);
 
             linda = new RemoteLindaManagerImpl();
             dns.bind("MyLinda", linda);
@@ -28,19 +25,17 @@ public class BackupLindaServer {
             System.out.println(e.getMessage());
         }
 
-        // Service prêt : attente d'appels
+        // Service ready : waiting for calls
         System.out.println ("Le systeme est pret.");
-
-        //LindaClient lindaClient = new LindaClient(backupURI);
 
         try {
             while (true) {
                 Thread.sleep(5000);
-                System.out.println("----------new state------------");
+                System.out.println("----------New Tuple Space state------------");
                 for (Tuple t : linda.readAll(null)){
                     System.out.println(t.toString());
                 }
-                System.out.println("----------end state------------\n\n\n\n");
+                System.out.println("----------------end state------------------\n\n\n\n");
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());

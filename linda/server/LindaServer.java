@@ -3,7 +3,6 @@ package linda.server;
 import linda.Tuple;
 
 import java.io.*;
-import java.rmi.ConnectException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -12,16 +11,15 @@ import java.util.*;
 /** Création d'un serveur de nom intégré et d'un objet accessible à distance.
  *  Si la créatipon du serveur de nom échoue, on suppose qu'il existe déjà (rmiregistry) et on continue. */
 public class LindaServer {
+    static final int SERVER_PORT = 1099;
+    static final String BACKUP_SERVER_URI = "localhost:1098";
     public static void main (String args[]) {
         Registry dns = null;
         RemoteLindaManager linda = null;
-        String serverURI = args[0];
-        String backupURI = serverURI.equals("localhost:1099") ? "localhost:1098" : "localhost:1099";
-        int port = serverURI.equals("localhost:1099") ? 1099 : 1098;
 
-        //  Création du serveur de noms
+        //  Name server creation
         try {
-            dns = LocateRegistry.createRegistry(port);
+            dns = LocateRegistry.createRegistry(SERVER_PORT);
 
             linda = new RemoteLindaManagerImpl();
             dns.bind("MyLinda", linda);
@@ -29,14 +27,14 @@ public class LindaServer {
             System.out.println(e.getMessage());
         }
 
-        // Charger les tuples depuis la sauvegarde
+        // Load tuple space save
         loadSave(linda);
 
-        // Service prêt : attente d'appels
-        System.out.println ("Le systeme est pret.");
+        // System ready, waiting for calls
+        System.out.println ("Le systeme est pret, je suis le serveur principal.");
 
-        // setup du serveur de backup
-        linkWithBackupServer(backupURI, linda);
+        // Establish link with the backup server
+        linkWithBackupServer(linda);
     }
 
     public static void loadSave(RemoteLindaManager linda) {
@@ -60,34 +58,18 @@ public class LindaServer {
         }
     }
 
-    public static void linkWithBackupServer(String backupURI, RemoteLindaManager linda){
+    public static void linkWithBackupServer(RemoteLindaManager linda){
         LindaClient lindaClient = null;
-        boolean isMainServer;
 
-        // essayer de se connecter
-        // si on y arrive pas, essayer de se reconnecter toutes les 5 secondes
-        lindaClient = new LindaClient(backupURI);
+        // The backup server has to be started before
+        lindaClient = new LindaClient(BACKUP_SERVER_URI);
 
         while (true) {
             try{
                 Thread.sleep(5000);
-
-                isMainServer = backupURI.equals("localhost:1098") || !lindaClient.checkStatus();
-
-                if (isMainServer) {
-                    System.out.println("----------Main server------------");
-                    sendCopyToBackUp(linda, lindaClient);
-                    // TODO: gérer les callbacks
-
-                    saveTuples(linda);
-                } else {
-                    System.out.println("----------Server de backup------------");
-                    System.out.println("----------new state------------");
-                    for (Tuple t : linda.readAll(null)){
-                        System.out.println(t.toString());
-                    }
-                    System.out.println("----------end state------------\n\n\n\n");
-                }
+                sendCopyToBackUp(linda, lindaClient);
+                saveTuples(linda);
+                // TODO: gérer les callbacks
             } catch (Exception e) {
                 System.out.println(e.getMessage());
             }
