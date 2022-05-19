@@ -8,8 +8,6 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.*;
 
-/** Création d'un serveur de nom intégré et d'un objet accessible à distance.
- *  Si la créatipon du serveur de nom échoue, on suppose qu'il existe déjà (rmiregistry) et on continue. */
 public class LindaServer {
     static final int SERVER_PORT = 1099;
     static final String BACKUP_SERVER_URI = "localhost:1098";

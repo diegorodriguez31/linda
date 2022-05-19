@@ -17,7 +17,7 @@ public class LindaClient implements Linda {
     final String BACKUP_SERVER_URI = "localhost:1098";
 
     /** Initializes the Linda implementation.
-     *  @param serverURI the URI of the server, e.g. "rmi://localhost:4000/LindaServer" or "//localhost:4000/LindaServer".
+     *  @param serverURI the URI of the server, e.g. "rmi://localhost:1099/LindaServer" or "//localhost:1099/LindaServer".
      */
     public LindaClient(String serverURI) {
         if (serverURI.length() >= 1) {
