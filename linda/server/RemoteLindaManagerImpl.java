@@ -1,11 +1,9 @@
 package linda.server;
 
-import linda.AsynchronousCallback;
 import linda.Callback;
 import linda.Linda;
 import linda.Tuple;
 import linda.shm.CentralizedLinda;
-import linda.test.BasicTestAsyncCallback;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -86,5 +84,8 @@ public class RemoteLindaManagerImpl extends UnicastRemoteObject implements Remot
                 System.out.println(e.getMessage());
             }
         }
+    }
+    public boolean checkStatus() throws RemoteException {
+        return true;
     }
 }

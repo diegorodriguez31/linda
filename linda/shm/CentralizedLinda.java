@@ -23,7 +23,6 @@ public class CentralizedLinda implements Linda {
         tuplesSpace = new ArrayList<>();
         callBackInfos = new ArrayList<>();
         callBackLock = new ReentrantLock();
-
         moniteur = new ReentrantLock();
         requests = new ArrayList<>();
     }
@@ -161,10 +160,11 @@ public class CentralizedLinda implements Linda {
 
     @Override
     public Collection<Tuple> takeAll(Tuple template) {
+        boolean takeAllTuples = template == null;
         List<Tuple> res = new ArrayList<>();
         moniteur.lock();
         for (Tuple tuple : tuplesSpace) {
-            if(tuple.matches(template)) {
+            if(takeAllTuples || tuple.matches(template)) {
                 res.add(tuple);
             }
         }
@@ -175,10 +175,11 @@ public class CentralizedLinda implements Linda {
 
     @Override
     public Collection<Tuple> readAll(Tuple template) {
+        boolean readAllTuples = template == null;
         List<Tuple> res = new ArrayList<>();
         moniteur.lock();
         for (Tuple tuple : tuplesSpace) {
-            if(tuple.matches(template)) {
+            if(readAllTuples || tuple.matches(template)) {
                 res.add(tuple.deepclone());
             }
         }
@@ -227,14 +228,19 @@ public class CentralizedLinda implements Linda {
         List<CallBackInfo> callBacksToTrigger = new ArrayList<>();
 
         callBackLock.lock();
+
+        // get the list of all the callBacks that need to be triggered
         for (CallBackInfo callBackInfo : callBackInfos) {
             if (isTemplateOccurrence(callBackInfo.getTemplate())) {
                 callBacksToTrigger.add(callBackInfo);
             }
         }
+
+        // remove them from the list of callbacks
         callBackInfos.removeAll(callBacksToTrigger);
         callBackLock.unlock();
 
+        // call the callbacks
         for (CallBackInfo callBackInfo : callBacksToTrigger) {
             Tuple tuple = null;
             if (callBackInfo.getMode() == eventMode.READ) {
@@ -243,9 +249,14 @@ public class CentralizedLinda implements Linda {
                 tuple = tryTake(callBackInfo.getTemplate());
             }
 
+            // sometimes, 2 callbacks may wanna take the only occurence of a tuple
+            // the tuple would be null for the second callback
+            // so:
             if(tuple != null) {
+                // call the callback
                 callBackInfo.getCallback().call(tuple);
             } else {
+                // add back the callback into the list
                 callBackLock.lock();
                 callBackInfos.add(new CallBackInfo(callBackInfo.getMode(), callBackInfo.getTemplate(), callBackInfo.getCallback()));
                 callBackLock.unlock();
